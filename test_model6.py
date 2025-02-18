@@ -26,22 +26,75 @@ def solve_sudoku_blind(board, steps):
                 return True
             board[row, col] = 0
     return False
+import random
+
+#Heuristic start
+def find_empty_mrv(board):
+    """ เลือกตำแหน่งที่มีตัวเลือกตัวเลขน้อยที่สุด (MRV) """
+    min_options = float('inf')
+    best_pos = None
+
+    for i in range(9):
+        for j in range(9):
+            if board[i, j] == 0:  # ถ้าเป็นช่องว่าง
+                options = [num for num in range(1, 10) if is_valid(board, i, j, num)]
+                if len(options) < min_options:
+                    min_options = len(options)
+                    best_pos = (i, j)
+    
+    return best_pos
+
+def get_least_constraining_values(board, row, col):
+    """ คืนลิสต์ของตัวเลขที่กระทบช่องอื่นน้อยที่สุด (LCV) """
+    num_constraints = {}
+    
+    for num in range(1, 10):
+        if is_valid(board, row, col, num):
+            # นับว่าหากใส่ num จะไปบล็อกช่องอื่นๆ กี่ช่อง
+            count = sum(
+                1 for i in range(9) for j in range(9)
+                if board[i, j] == 0 and is_valid(board, i, j, num)
+            )
+            num_constraints[num] = count
+    
+    # เรียงค่าตามผลกระทบจากน้อยไปมาก (LCV)
+    return sorted(num_constraints, key=num_constraints.get)
 
 def solve_sudoku_heuristic(board, steps):
-    empty = find_empty(board)
+    empty = find_empty_mrv(board)  # ใช้ MRV หา position ที่ดีที่สุด
     if not empty:
         return True
+
     row, col = empty
-    nums = list(range(1, 10))
-    random.shuffle(nums)
+    nums = get_least_constraining_values(board, row, col)  # ใช้ LCV เลือกค่าที่ดีที่สุด
+
     for num in nums:
-        if is_valid(board, row, col, num):
-            board[row, col] = num
-            steps.append((row, col, num))
-            if solve_sudoku_heuristic(board, steps):
-                return True
-            board[row, col] = 0
+        board[row, col] = num
+        steps.append((row, col, num))
+        
+        if solve_sudoku_heuristic(board, steps):
+            return True
+        
+        board[row, col] = 0  # Backtracking
+
     return False
+#Heuristic end
+
+# def solve_sudoku_heuristic(board, steps):
+#     empty = find_empty(board)
+#     if not empty:
+#         return True
+#     row, col = empty
+#     nums = list(range(1, 10))
+#     random.shuffle(nums)
+#     for num in nums:
+#         if is_valid(board, row, col, num):
+#             board[row, col] = num
+#             steps.append((row, col, num))
+#             if solve_sudoku_heuristic(board, steps):
+#                 return True
+#             board[row, col] = 0
+#     return False
 
 def find_empty(board):
     for i in range(9):
