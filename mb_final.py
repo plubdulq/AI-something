@@ -277,12 +277,7 @@ if st.session_state.solving:
 
             total_memory_blind = sum(st.session_state.memory_blind)
             if len(st.session_state.memory_blind) > 0:
-                max_memory_blind = max(st.session_state.memory_blind)
-                min_memory_blind = min(st.session_state.memory_blind)
                 st.write(f"Total Memory: {total_memory_blind:.2f} MB")
-                st.write(f"Max Memory: {max_memory_blind:.2f} MB")
-                st.write(f"Min Memory: {min_memory_blind:.2f} MB")
-                st.write(f"Memory Difference: {max_memory_blind - min_memory_blind:.2f} MB")
 
             valid_steps = [s for s in st.session_state.steps_blind if s[2] > 0]
             backtrack_steps = [s for s in st.session_state.steps_blind if s[2] == 0]
@@ -315,12 +310,7 @@ if st.session_state.solving:
 
             total_memory_heuristic = sum(st.session_state.memory_heuristic)
             if len(st.session_state.memory_heuristic) > 0:
-                max_memory_heuristic = max(st.session_state.memory_heuristic)
-                min_memory_heuristic = min(st.session_state.memory_heuristic)
                 st.write(f"Total Memory: {total_memory_heuristic:.2f} MB")
-                st.write(f"Max Memory: {max_memory_heuristic:.2f} MB")
-                st.write(f"Min Memory: {min_memory_heuristic:.2f} MB")
-                st.write(f"Memory Difference: {max_memory_heuristic - min_memory_heuristic:.2f} MB")
                 
             valid_steps = [s for s in st.session_state.steps_heuristic if s[2] > 0]
             backtrack_steps = [s for s in st.session_state.steps_heuristic if s[2] == 0]
