@@ -178,15 +178,15 @@ def draw_board(board, original_board, highlight_pos=None):
 
 st.markdown("<h1 style='text-align: center;'>🧩 Sudoku Solver: Blind vs Heuristic Search Comparison</h1>", unsafe_allow_html=True)
 
-# Add difficulty selector
+# Set default difficulty if not set
 if "difficulty" not in st.session_state:
-    st.session_state.difficulty = 'medium'
-
+    st.session_state.difficulty = 'medium'  # Default difficulty
+# Add difficulty selector
+difficulty = st.selectbox("Select Difficulty", 
+                          ['easy', 'medium', 'hard', 'expert'],
+                          index=['easy', 'medium', 'hard', 'expert'].index(st.session_state.difficulty))
 # Initialize session state
-if "original_board" not in st.session_state:
-    difficulty = st.selectbox("Select Difficulty", 
-                            ['easy', 'medium', 'hard', 'expert'],
-                            index=['easy', 'medium', 'hard', 'expert'].index(st.session_state.difficulty))
+if "original_board" not in st.session_state or st.session_state.difficulty != difficulty:
     st.session_state.difficulty = difficulty
     st.session_state.original_board = generate_sudoku(difficulty)
     st.session_state.board_blind = np.copy(st.session_state.original_board)
@@ -203,11 +203,17 @@ if "original_board" not in st.session_state:
     st.session_state.auto_play = False
     st.session_state.play_speed = 0.05
     st.session_state.skip_frames = 5
+    st.session_state.memory_blind = []
+    st.session_state.memory_heuristic = []
+    st.session_state.memory_history_blind = []
+    st.session_state.memory_history_heuristic = []
+    st.session_state.total_memory_history = []
+    st.session_state.runtime_history = []
 
 # Control buttons
 col1, col2, col3 = st.columns([2,1,2])
 with col2:
-    st.markdown("### Initial Sudoku")
+    st.markdown(f"<h6>Initial Sudoku : <span style='color: #FF5733; font-size: 1.2em; font-weight: bold;'>{st.session_state.difficulty.capitalize()}</span> Level</h6>", unsafe_allow_html=True)
     st.markdown(draw_board(st.session_state.original_board, st.session_state.original_board), 
                 unsafe_allow_html=True)
 
