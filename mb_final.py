@@ -185,7 +185,7 @@ if "difficulty" not in st.session_state:
 # Initialize session state
 if "original_board" not in st.session_state:
     difficulty = st.selectbox("Select Difficulty", 
-                            ['Easy', 'Medium', 'Hard', 'Expert'],
+                            ['easy', 'medium', 'hard', 'expert'],
                             index=['easy', 'medium', 'hard', 'expert'].index(st.session_state.difficulty))
     st.session_state.difficulty = difficulty
     st.session_state.original_board = generate_sudoku(difficulty)
