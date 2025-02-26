@@ -2,8 +2,9 @@ import streamlit as st
 import numpy as np
 import time
 import random
-import psutil #ใช้เช็ค memmory งับ
+import psutil
 import os
+import plotly.graph_objects as go
 
 def is_valid(board, row, col, num):
     if num in board[row]:
@@ -61,6 +62,12 @@ if "memory_blind" not in st.session_state:
     st.session_state.memory_blind = []
 if "memory_heuristic" not in st.session_state:
     st.session_state.memory_heuristic = []
+if "memory_history_blind" not in st.session_state:
+    st.session_state.memory_history_blind = []
+if "memory_history_heuristic" not in st.session_state:
+    st.session_state.memory_history_heuristic = []
+if "total_memory_history" not in st.session_state:
+    st.session_state.total_memory_history = []  # Store (blind, heuristic) tuples
 
 def solve_sudoku_blind(board, steps):
     empty = find_empty(board)
@@ -101,14 +108,30 @@ def solve_sudoku_heuristic(board, steps):
 
     return False
 
-def generate_sudoku():
+def generate_sudoku(difficulty='medium'):
+    difficulty_levels = {
+        'easy': 35,      # More filled cells = easier
+        'medium': 25,
+        'hard': 20,
+        'expert': 17     # 17 is minimum for unique solution
+    }
+    
+    filled_cells = difficulty_levels.get(difficulty, 25)  # Default to medium if invalid
     board = np.zeros((9, 9), dtype=int)
-    filled_positions = random.sample(range(81), 17)
-    for pos in filled_positions:
+    
+    # First, solve an empty board to get a complete valid solution
+    temp_board = np.zeros((9, 9), dtype=int)
+    solve_sudoku_heuristic(temp_board, [])  # Use heuristic solver for speed
+    
+    # Randomly select positions to keep
+    all_positions = list(range(81))
+    positions_to_keep = random.sample(all_positions, filled_cells)
+    
+    # Create the puzzle by keeping only selected positions
+    for pos in positions_to_keep:
         row, col = divmod(pos, 9)
-        num = random.randint(1, 9)
-        if is_valid(board, row, col, num):
-            board[row, col] = num
+        board[row, col] = temp_board[row, col]
+    
     return board
 
 def draw_board(board, original_board, highlight_pos=None):
@@ -145,9 +168,17 @@ def draw_board(board, original_board, highlight_pos=None):
 st.set_page_config(layout="wide")
 st.title("Sudoku Solver: Blind vs Heuristic Search Comparison")
 
+# Add difficulty selector
+if "difficulty" not in st.session_state:
+    st.session_state.difficulty = 'medium'
+
 # Initialize session state
 if "original_board" not in st.session_state:
-    st.session_state.original_board = generate_sudoku()
+    difficulty = st.selectbox("Select Difficulty", 
+                            ['easy', 'medium', 'hard', 'expert'],
+                            index=['easy', 'medium', 'hard', 'expert'].index(st.session_state.difficulty))
+    st.session_state.difficulty = difficulty
+    st.session_state.original_board = generate_sudoku(difficulty)
     st.session_state.board_blind = np.copy(st.session_state.original_board)
     st.session_state.board_heuristic = np.copy(st.session_state.original_board)
     st.session_state.solved_blind = None
@@ -193,6 +224,15 @@ with b1:
         solve_sudoku_heuristic(st.session_state.board_heuristic, st.session_state.steps_heuristic)
         st.session_state.time_heuristic = time.time() - start_time
         
+        # Store runtime data immediately after solving
+        if "runtime_history" not in st.session_state:
+            st.session_state.runtime_history = []
+        st.session_state.runtime_history.append(
+            (st.session_state.time_blind, st.session_state.time_heuristic)
+        )
+        if len(st.session_state.runtime_history) > 10:
+            st.session_state.runtime_history.pop(0)
+        
         st.rerun()
 
 with b2:
@@ -204,7 +244,22 @@ with b2:
 
 with b3:
     if st.button("Reset", disabled=not st.session_state.solving):
-        st.session_state.original_board = generate_sudoku()
+        # Add difficulty selector when resetting
+        new_difficulty = st.selectbox("Select New Difficulty", 
+                                    ['easy', 'medium', 'hard', 'expert'],
+                                    index=['easy', 'medium', 'hard', 'expert'].index(st.session_state.difficulty))
+        st.session_state.difficulty = new_difficulty
+        st.session_state.original_board = generate_sudoku(new_difficulty)
+        
+        # Store memory results before reset
+        if len(st.session_state.memory_blind) > 0 and len(st.session_state.memory_heuristic) > 0:
+            total_memory_blind = sum(st.session_state.memory_blind)
+            total_memory_heuristic = sum(st.session_state.memory_heuristic)
+            st.session_state.memory_history_blind.append(total_memory_blind)
+            st.session_state.memory_history_heuristic.append(total_memory_heuristic)
+            st.session_state.total_memory_history.append((total_memory_blind, total_memory_heuristic))
+        
+        # Reset other states
         st.session_state.board_blind = np.copy(st.session_state.original_board)
         st.session_state.board_heuristic = np.copy(st.session_state.original_board)
         st.session_state.steps_blind = []
@@ -215,6 +270,8 @@ with b3:
         st.session_state.auto_play = False
         st.session_state.highlight_pos_blind = None
         st.session_state.highlight_pos_heuristic = None
+        st.session_state.memory_blind = []
+        st.session_state.memory_heuristic = []
         st.rerun()
 
 # Speed controls (only show if solving)
@@ -350,10 +407,17 @@ if st.session_state.solving:
         backtrack_diff = blind_backtracks - heuristic_backtracks
         backtrack_percent = (backtrack_diff / blind_backtracks) * 100 if blind_backtracks > 0 else 0
         
+        # Calculate memory differences
+        total_memory_blind = sum(st.session_state.memory_blind)
+        total_memory_heuristic = sum(st.session_state.memory_heuristic)
+        memory_diff = total_memory_blind - total_memory_heuristic
+        memory_percent = (memory_diff / total_memory_blind) * 100 if total_memory_blind > 0 else 0
+        
         # Format comparison results
         faster = "Heuristic" if time_diff > 0 else "Blind"
         more_efficient = "Heuristic" if steps_diff > 0 else "Blind"
         less_backtracking = "Heuristic" if backtrack_diff > 0 else "Blind"
+        less_memory = "Heuristic" if memory_diff > 0 else "Blind"
         
         col1, col2 = st.columns(2)
         with col1:
@@ -363,6 +427,12 @@ if st.session_state.solving:
             - Heuristic: {st.session_state.time_heuristic:.4f} sec
             - Difference: {abs(time_diff):.4f} sec ({abs(time_percent):.1f}%)
             - **Winner: {faster}**
+            
+            **Memory Efficiency:**
+            - Blind: {total_memory_blind:.2f} MB
+            - Heuristic: {total_memory_heuristic:.2f} MB
+            - Difference: {abs(memory_diff):.2f} MB ({abs(memory_percent):.1f}%)
+            - **Winner: {less_memory}**
             """)
             
         with col2:
@@ -439,3 +509,134 @@ if st.session_state.solving and st.session_state.auto_play:
         # Both visualizations complete, turn off auto-play
         st.session_state.auto_play = False
         st.rerun()
+
+# Modify the memory history section
+if len(st.session_state.total_memory_history) > 0:
+    st.markdown("### Performance History")
+    
+    tab1, tab2 = st.tabs(["Memory Usage", "Runtime"])
+    
+    with tab1:
+        # Memory usage graph
+        fig_memory = go.Figure()
+        x_axis = list(range(1, len(st.session_state.total_memory_history) + 1))
+        
+        # Regular memory lines
+        fig_memory.add_trace(go.Scatter(
+            x=x_axis,
+            y=[mem[0] for mem in st.session_state.total_memory_history],
+            name="Blind Search",
+            line=dict(color='blue'),
+            mode='lines+markers'  # Add markers for better visibility
+        ))
+        
+        fig_memory.add_trace(go.Scatter(
+            x=x_axis,
+            y=[mem[1] for mem in st.session_state.total_memory_history],
+            name="Heuristic Search",
+            line=dict(color='red'),
+            mode='lines+markers'  # Add markers for better visibility
+        ))
+        
+        fig_memory.update_layout(
+            title=f"Memory Usage Comparison (Total {len(st.session_state.total_memory_history)} Boards)",
+            xaxis_title="Board Number",
+            yaxis_title="Memory Usage (MB)",
+            hovermode='x unified',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01
+            )
+        )
+        
+        st.plotly_chart(fig_memory, use_container_width=True)
+        
+        # Add memory statistics
+        col1, col2 = st.columns(2)
+        with col1:
+            avg_memory_blind = sum(mem[0] for mem in st.session_state.total_memory_history) / len(st.session_state.total_memory_history)
+            max_memory_blind = max(mem[0] for mem in st.session_state.total_memory_history)
+            min_memory_blind = min(mem[0] for mem in st.session_state.total_memory_history)
+            st.markdown(f"""
+            **Blind Search Memory Stats:**
+            - Average Memory: {avg_memory_blind:.2f} MB
+            - Max Memory: {max_memory_blind:.2f} MB
+            - Min Memory: {min_memory_blind:.2f} MB
+            """)
+        
+        with col2:
+            avg_memory_heuristic = sum(mem[1] for mem in st.session_state.total_memory_history) / len(st.session_state.total_memory_history)
+            max_memory_heuristic = max(mem[1] for mem in st.session_state.total_memory_history)
+            min_memory_heuristic = min(mem[1] for mem in st.session_state.total_memory_history)
+            st.markdown(f"""
+            **Heuristic Search Memory Stats:**
+            - Average Memory: {avg_memory_heuristic:.2f} MB
+            - Max Memory: {max_memory_heuristic:.2f} MB
+            - Min Memory: {min_memory_heuristic:.2f} MB
+            """)
+    
+    with tab2:
+        # Runtime graph
+        if len(st.session_state.runtime_history) > 0:
+            fig_runtime = go.Figure()
+            x_axis = list(range(1, len(st.session_state.runtime_history) + 1))
+            
+            # Regular runtime lines
+            fig_runtime.add_trace(go.Scatter(
+                x=x_axis,
+                y=[t[0] for t in st.session_state.runtime_history],
+                name="Blind Search",
+                line=dict(color='blue'),
+                mode='lines+markers'  # Add markers for better visibility
+            ))
+            
+            fig_runtime.add_trace(go.Scatter(
+                x=x_axis,
+                y=[t[1] for t in st.session_state.runtime_history],
+                name="Heuristic Search",
+                line=dict(color='red'),
+                mode='lines+markers'  # Add markers for better visibility
+            ))
+            
+            fig_runtime.update_layout(
+                title=f"Runtime Comparison (Total {len(st.session_state.runtime_history)} Boards)",
+                xaxis_title="Board Number",
+                yaxis_title="Runtime (seconds)",
+                hovermode='x unified',
+                showlegend=True,
+                legend=dict(
+                    yanchor="top",
+                    y=0.99,
+                    xanchor="left",
+                    x=0.01
+                )
+            )
+            
+            st.plotly_chart(fig_runtime, use_container_width=True)
+            
+            # Add runtime statistics
+            col1, col2 = st.columns(2)
+            with col1:
+                avg_runtime_blind = sum(t[0] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
+                max_runtime_blind = max(t[0] for t in st.session_state.runtime_history)
+                min_runtime_blind = min(t[0] for t in st.session_state.runtime_history)
+                st.markdown(f"""
+                **Blind Search Runtime Stats:**
+                - Average Runtime: {avg_runtime_blind:.4f} sec
+                - Max Runtime: {max_runtime_blind:.4f} sec
+                - Min Runtime: {min_runtime_blind:.4f} sec
+                """)
+            
+            with col2:
+                avg_runtime_heuristic = sum(t[1] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
+                max_runtime_heuristic = max(t[1] for t in st.session_state.runtime_history)
+                min_runtime_heuristic = min(t[1] for t in st.session_state.runtime_history)
+                st.markdown(f"""
+                **Heuristic Search Runtime Stats:**
+                - Average Runtime: {avg_runtime_heuristic:.4f} sec
+                - Max Runtime: {max_runtime_heuristic:.4f} sec
+                - Min Runtime: {min_runtime_heuristic:.4f} sec
+                """)
