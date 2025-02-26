@@ -1,10 +1,19 @@
 import streamlit as st
+st.set_page_config(layout="wide")
+
 import numpy as np
 import time
 import random
 import psutil
 import os
 import plotly.graph_objects as go
+
+# เพิ่ม CSS สำหรับตกแต่ง UI
+st.markdown("""
+<style>
+
+</style>
+""", unsafe_allow_html=True)
 
 def is_valid(board, row, col, num):
     if num in board[row]:
@@ -165,8 +174,9 @@ def draw_board(board, original_board, highlight_pos=None):
     return table_html
 
 # App
-st.set_page_config(layout="wide")
-st.title("Sudoku Solver: Blind vs Heuristic Search Comparison")
+
+
+st.markdown("<h1 style='text-align: center;'>🧩 Sudoku Solver: Blind vs Heuristic Search Comparison</h1>", unsafe_allow_html=True)
 
 # Add difficulty selector
 if "difficulty" not in st.session_state:
@@ -175,7 +185,7 @@ if "difficulty" not in st.session_state:
 # Initialize session state
 if "original_board" not in st.session_state:
     difficulty = st.selectbox("Select Difficulty", 
-                            ['easy', 'medium', 'hard', 'expert'],
+                            ['Easy', 'Medium', 'Hard', 'Expert'],
                             index=['easy', 'medium', 'hard', 'expert'].index(st.session_state.difficulty))
     st.session_state.difficulty = difficulty
     st.session_state.original_board = generate_sudoku(difficulty)
