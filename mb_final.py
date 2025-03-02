@@ -249,6 +249,19 @@ with b1:
         if len(st.session_state.runtime_history) > 10:
             st.session_state.runtime_history.pop(0)
         
+
+         # **เก็บ memory usage พร้อมกัน**
+        total_memory_blind = sum(st.session_state.memory_blind)  # คำนวณ memory ที่ใช้ไปทั้งหมด
+        total_memory_heuristic = sum(st.session_state.memory_heuristic)
+
+        if "total_memory_history" not in st.session_state:
+            st.session_state.total_memory_history = []
+        st.session_state.total_memory_history.append(
+            (total_memory_blind, total_memory_heuristic)
+        )
+        if len(st.session_state.total_memory_history) > 10:
+            st.session_state.total_memory_history.pop(0)
+        
         st.rerun()
 
 with b2:
@@ -268,12 +281,13 @@ with b3:
         st.session_state.original_board = generate_sudoku(new_difficulty)
         
         # Store memory results before reset
-        if len(st.session_state.memory_blind) > 0 and len(st.session_state.memory_heuristic) > 0:
-            total_memory_blind = sum(st.session_state.memory_blind)
-            total_memory_heuristic = sum(st.session_state.memory_heuristic)
-            st.session_state.memory_history_blind.append(total_memory_blind)
-            st.session_state.memory_history_heuristic.append(total_memory_heuristic)
-            st.session_state.total_memory_history.append((total_memory_blind, total_memory_heuristic))
+        # if len(st.session_state.memory_blind) > 0 and len(st.session_state.memory_heuristic) > 0:
+        #     total_memory_blind = sum(st.session_state.memory_blind)
+        #     total_memory_heuristic = sum(st.session_state.memory_heuristic)
+        #     st.session_state.memory_history_blind.append(total_memory_blind)
+        #     st.session_state.memory_history_heuristic.append(total_memory_heuristic)
+        #     st.session_state.total_memory_history.append((total_memory_blind, total_memory_heuristic))
+        
         
         # Reset other states
         st.session_state.board_blind = np.copy(st.session_state.original_board)
@@ -567,7 +581,8 @@ if len(st.session_state.total_memory_history) > 0:
                 x=0.01
             )
         )
-        
+        st.write("Memory history:", st.session_state.total_memory_history)
+        st.write("Runtime history:", st.session_state.runtime_history)
         st.plotly_chart(fig_memory, use_container_width=True)
         
         # Add memory statistics
