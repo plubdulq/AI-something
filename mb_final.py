@@ -581,8 +581,6 @@ if len(st.session_state.total_memory_history) > 0:
                 x=0.01
             )
         )
-        st.write("Memory history:", st.session_state.total_memory_history)
-        st.write("Runtime history:", st.session_state.runtime_history)
         st.plotly_chart(fig_memory, use_container_width=True)
         
         # Add memory statistics
