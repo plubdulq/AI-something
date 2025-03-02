@@ -6,7 +6,6 @@ import time
 import random
 import psutil
 import os
-import pandas as pd
 import plotly.graph_objects as go
 
 # เพิ่ม CSS สำหรับตกแต่ง UI
@@ -478,61 +477,62 @@ if st.session_state.solving:
         st.session_state.current_step_heuristic >= len(st.session_state.steps_heuristic) and
         len(st.session_state.steps_blind) > 0 and len(st.session_state.steps_heuristic) > 0):
         
+        st.markdown("### Comparison Results")
         
-        # Ensure the necessary values are calculated
-        time_blind = st.session_state.time_blind if "time_blind" in st.session_state else 0.0
-        time_heuristic = st.session_state.time_heuristic if "time_heuristic" in st.session_state else 0.0
-        blind_steps = len(st.session_state.steps_blind) if "steps_blind" in st.session_state else 0
-        heuristic_steps = len(st.session_state.steps_heuristic) if "steps_heuristic" in st.session_state else 0
-        blind_backtracks = len([s for s in st.session_state.steps_blind if s[2] == 0]) if "steps_blind" in st.session_state else 0
-        heuristic_backtracks = len([s for s in st.session_state.steps_heuristic if s[2] == 0]) if "steps_heuristic" in st.session_state else 0
-        total_memory_blind = sum(st.session_state.memory_blind) if "memory_blind" in st.session_state else 0.0
-        total_memory_heuristic = sum(st.session_state.memory_heuristic) if "memory_heuristic" in st.session_state else 0.0
-
         # Prepare comparison metrics
-        time_diff = time_blind - time_heuristic
-        time_percent = (time_diff / time_blind) * 100 if time_blind > 0 else 0
-        steps_diff = blind_steps - heuristic_steps
-        steps_percent = (steps_diff / blind_steps) * 100 if blind_steps > 0 else 0
+        time_diff = st.session_state.time_blind - st.session_state.time_heuristic
+        time_percent = (time_diff / st.session_state.time_blind) * 100 if st.session_state.time_blind > 0 else 0
+        
+        steps_diff = len(st.session_state.steps_blind) - len(st.session_state.steps_heuristic)
+        steps_percent = (steps_diff / len(st.session_state.steps_blind)) * 100 if len(st.session_state.steps_blind) > 0 else 0
+        
+        blind_backtracks = len([s for s in st.session_state.steps_blind if s[2] == 0])
+        heuristic_backtracks = len([s for s in st.session_state.steps_heuristic if s[2] == 0])
         backtrack_diff = blind_backtracks - heuristic_backtracks
         backtrack_percent = (backtrack_diff / blind_backtracks) * 100 if blind_backtracks > 0 else 0
+        
+        # Calculate memory differences
+        total_memory_blind = sum(st.session_state.memory_blind)
+        total_memory_heuristic = sum(st.session_state.memory_heuristic)
         memory_diff = total_memory_blind - total_memory_heuristic
         memory_percent = (memory_diff / total_memory_blind) * 100 if total_memory_blind > 0 else 0
-
-        # Determine winners
+        
+        # Format comparison results
         faster = "Heuristic" if time_diff > 0 else "Blind"
         more_efficient = "Heuristic" if steps_diff > 0 else "Blind"
         less_backtracking = "Heuristic" if backtrack_diff > 0 else "Blind"
         less_memory = "Heuristic" if memory_diff > 0 else "Blind"
-
-        # 📊 **Comparison Table**
-        comparison_data = {
-            "Metric": ["Time Efficiency", "Memory Efficiency", "Solution Efficiency", "Backtracking Efficiency"],
-            "Blind Search": [
-                f"{time_blind:.4f} sec",
-                f"{total_memory_blind:.2f} MB",
-                f"{blind_steps} steps",
-                f"{blind_backtracks} backtracks"
-            ],
-            "Heuristic Search": [
-                f"{time_heuristic:.4f} sec",
-                f"{total_memory_heuristic:.2f} MB",
-                f"{heuristic_steps} steps",
-                f"{heuristic_backtracks} backtracks"
-            ],
-            "Difference": [
-                f"{abs(time_diff):.4f} sec ({abs(time_percent):.1f}%)",
-                f"{abs(memory_diff):.2f} MB ({abs(memory_percent):.1f}%)",
-                f"{abs(steps_diff)} steps ({abs(steps_percent):.1f}%)",
-                f"{abs(backtrack_diff)} backtracks ({abs(backtrack_percent):.1f}%)"
-            ],
-            "Winner": [faster, less_memory, more_efficient, less_backtracking]
-        }
-
-        df_comparison = pd.DataFrame(comparison_data)
-        st.markdown("### 📊 Comparison Results Table")
-        st.dataframe(df_comparison)
-
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            **Time Efficiency:**
+            - Blind: {st.session_state.time_blind:.4f} sec
+            - Heuristic: {st.session_state.time_heuristic:.4f} sec
+            - Difference: {abs(time_diff):.4f} sec ({abs(time_percent):.1f}%)
+            - **Winner: {faster}**
+            
+            **Memory Efficiency:**
+            - Blind: {total_memory_blind:.2f} MB
+            - Heuristic: {total_memory_heuristic:.2f} MB
+            - Difference: {abs(memory_diff):.2f} MB ({abs(memory_percent):.1f}%)
+            - **Winner: {less_memory}**
+            """)
+            
+        with col2:
+            st.markdown(f"""
+            **Solution Efficiency:**
+            - Blind steps: {len(st.session_state.steps_blind)}
+            - Heuristic steps: {len(st.session_state.steps_heuristic)}
+            - Difference: {abs(steps_diff)} steps ({abs(steps_percent):.1f}%)
+            - **Winner: {more_efficient}**
+            
+            **Backtracking Efficiency:**
+            - Blind backtracks: {blind_backtracks}
+            - Heuristic backtracks: {heuristic_backtracks}
+            - Difference: {abs(backtrack_diff)} backtracks ({abs(backtrack_percent):.1f}%)
+            - **Winner: {less_backtracking}**
+            """)
 
 # Auto-play logic (must be at the end)
 if st.session_state.solving and st.session_state.auto_play:
@@ -637,35 +637,33 @@ if len(st.session_state.total_memory_history) > 0:
         )
         st.plotly_chart(fig_memory, use_container_width=True)
         
-        # 🧠 **Memory Stats Table**
-        memory_stats_data = {
-            "Metric": ["Average Memory", "Max Memory", "Min Memory"],
-            "Blind Search (MB)": [
-                f"{total_memory_blind:.2f} MB",
-                f"{total_memory_blind + 1.5:.2f} MB",
-                f"{total_memory_blind - 1.0:.2f} MB"
-            ],
-            "Heuristic Search (MB)": [
-                f"{total_memory_heuristic:.2f} MB",
-                f"{total_memory_heuristic + 1.2:.2f} MB",
-                f"{total_memory_heuristic - 0.8:.2f} MB"
-            ]
-        }
-
-        df_memory_stats = pd.DataFrame(memory_stats_data)
-        st.markdown("### 🧠 Memory Usage Comparison Table")
-        st.dataframe(df_memory_stats)
+        # Add memory statistics
+        col1, col2 = st.columns(2)
+        with col1:
+            avg_memory_blind = sum(mem[0] for mem in st.session_state.total_memory_history) / len(st.session_state.total_memory_history)
+            max_memory_blind = max(mem[0] for mem in st.session_state.total_memory_history)
+            min_memory_blind = min(mem[0] for mem in st.session_state.total_memory_history)
+            st.markdown(f"""
+            **Blind Search Memory Stats:**
+            - Average Memory: {avg_memory_blind:.2f} MB
+            - Max Memory: {max_memory_blind:.2f} MB
+            - Min Memory: {min_memory_blind:.2f} MB
+            """)
+        
+        with col2:
+            avg_memory_heuristic = sum(mem[1] for mem in st.session_state.total_memory_history) / len(st.session_state.total_memory_history)
+            max_memory_heuristic = max(mem[1] for mem in st.session_state.total_memory_history)
+            min_memory_heuristic = min(mem[1] for mem in st.session_state.total_memory_history)
+            st.markdown(f"""
+            **Heuristic Search Memory Stats:**
+            - Average Memory: {avg_memory_heuristic:.2f} MB
+            - Max Memory: {max_memory_heuristic:.2f} MB
+            - Min Memory: {min_memory_heuristic:.2f} MB
+            """)
     
     with tab2:
         # Runtime graph
         if len(st.session_state.runtime_history) > 0:
-            avg_runtime_blind = sum(t[0] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
-            max_runtime_blind = max(t[0] for t in st.session_state.runtime_history)
-            min_runtime_blind = min(t[0] for t in st.session_state.runtime_history)
-            
-            avg_runtime_heuristic = sum(t[1] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
-            max_runtime_heuristic = max(t[1] for t in st.session_state.runtime_history)
-            min_runtime_heuristic = min(t[1] for t in st.session_state.runtime_history)
             fig_runtime = go.Figure()
             x_axis = list(range(1, len(st.session_state.runtime_history) + 1))
             
@@ -703,22 +701,25 @@ if len(st.session_state.total_memory_history) > 0:
             st.plotly_chart(fig_runtime, use_container_width=True)
             
             # Add runtime statistics
-            # 📊 **Runtime Stats Table**
-            runtime_stats_data = {
-                "Metric": ["Average Runtime", "Max Runtime", "Min Runtime"],
-                "Blind Search (sec)": [
-                    f"{avg_runtime_blind:.4f} sec",
-                    f"{max_runtime_blind:.4f} sec",
-                    f"{min_runtime_blind:.4f} sec"
-                ],
-                "Heuristic Search (sec)": [
-                    f"{avg_runtime_heuristic:.4f} sec",
-                    f"{max_runtime_heuristic:.4f} sec",
-                    f"{min_runtime_heuristic:.4f} sec"
-                ]
-            }
-
-            df_runtime_stats = pd.DataFrame(runtime_stats_data)
-            st.markdown("### ⏱️ Runtime Comparison Table")
-            st.dataframe(df_runtime_stats)
-
+            col1, col2 = st.columns(2)
+            with col1:
+                avg_runtime_blind = sum(t[0] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
+                max_runtime_blind = max(t[0] for t in st.session_state.runtime_history)
+                min_runtime_blind = min(t[0] for t in st.session_state.runtime_history)
+                st.markdown(f"""
+                **Blind Search Runtime Stats:**
+                - Average Runtime: {avg_runtime_blind:.4f} sec
+                - Max Runtime: {max_runtime_blind:.4f} sec
+                - Min Runtime: {min_runtime_blind:.4f} sec
+                """)
+            
+            with col2:
+                avg_runtime_heuristic = sum(t[1] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
+                max_runtime_heuristic = max(t[1] for t in st.session_state.runtime_history)
+                min_runtime_heuristic = min(t[1] for t in st.session_state.runtime_history)
+                st.markdown(f"""
+                **Heuristic Search Runtime Stats:**
+                - Average Runtime: {avg_runtime_heuristic:.4f} sec
+                - Max Runtime: {max_runtime_heuristic:.4f} sec
+                - Min Runtime: {min_runtime_heuristic:.4f} sec
+                """)
