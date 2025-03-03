@@ -120,10 +120,9 @@ def solve_sudoku_heuristic(board, steps):
 
 def generate_sudoku(difficulty='medium'):
     difficulty_levels = {
-        'easy': 35,      # More filled cells = easier
-        'medium': 25,
+        'easy': 35,     
         'hard': 20,
-        'expert': 17     # 17 is minimum for unique solution
+        'expert': 17     
     }
     
     filled_cells = difficulty_levels.get(difficulty, 25)  # Default to medium if invalid
@@ -175,7 +174,6 @@ def draw_board(board, original_board, highlight_pos=None):
     return table_html
 
 # App
-
 
 st.markdown("<h1 style='text-align: center;'>🧩 Sudoku Solver: Blind vs Heuristic Search Comparison</h1>", unsafe_allow_html=True)
 
@@ -478,8 +476,7 @@ if st.session_state.solving:
         st.session_state.current_step_heuristic >= len(st.session_state.steps_heuristic) and
         len(st.session_state.steps_blind) > 0 and len(st.session_state.steps_heuristic) > 0):
         
-        
-        # Ensure the necessary values are calculated
+        # Ensure the necessary values are calculated for current run
         time_blind = st.session_state.time_blind if "time_blind" in st.session_state else 0.0
         time_heuristic = st.session_state.time_heuristic if "time_heuristic" in st.session_state else 0.0
         blind_steps = len(st.session_state.steps_blind) if "steps_blind" in st.session_state else 0
@@ -489,15 +486,50 @@ if st.session_state.solving:
         total_memory_blind = sum(st.session_state.memory_blind) if "memory_blind" in st.session_state else 0.0
         total_memory_heuristic = sum(st.session_state.memory_heuristic) if "memory_heuristic" in st.session_state else 0.0
 
-        # Prepare comparison metrics
-        time_diff = time_blind - time_heuristic
-        time_percent = (time_diff / time_blind) * 100 if time_blind > 0 else 0
-        steps_diff = blind_steps - heuristic_steps
-        steps_percent = (steps_diff / blind_steps) * 100 if blind_steps > 0 else 0
-        backtrack_diff = blind_backtracks - heuristic_backtracks
-        backtrack_percent = (backtrack_diff / blind_backtracks) * 100 if blind_backtracks > 0 else 0
-        memory_diff = total_memory_blind - total_memory_heuristic
-        memory_percent = (memory_diff / total_memory_blind) * 100 if total_memory_blind > 0 else 0
+        # Calculate averages from historical data
+        avg_time_blind = sum(t[0] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history) if st.session_state.runtime_history else time_blind
+        avg_time_heuristic = sum(t[1] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history) if st.session_state.runtime_history else time_heuristic
+        
+        # For steps and backtracks, we'll need to gather historical data
+        if "historical_steps_blind" not in st.session_state:
+            st.session_state.historical_steps_blind = []
+        if "historical_steps_heuristic" not in st.session_state:
+            st.session_state.historical_steps_heuristic = []
+        if "historical_backtracks_blind" not in st.session_state:
+            st.session_state.historical_backtracks_blind = []
+        if "historical_backtracks_heuristic" not in st.session_state:
+            st.session_state.historical_backtracks_heuristic = []
+        
+        # Add current data to history if not already included
+        if blind_steps > 0 and (len(st.session_state.historical_steps_blind) == 0 or 
+                                st.session_state.historical_steps_blind[-1] != blind_steps):
+            st.session_state.historical_steps_blind.append(blind_steps)
+            st.session_state.historical_backtracks_blind.append(blind_backtracks)
+        
+        if heuristic_steps > 0 and (len(st.session_state.historical_steps_heuristic) == 0 or 
+                                st.session_state.historical_steps_heuristic[-1] != heuristic_steps):
+            st.session_state.historical_steps_heuristic.append(heuristic_steps)
+            st.session_state.historical_backtracks_heuristic.append(heuristic_backtracks)
+        
+        # Calculate averages
+        avg_steps_blind = sum(st.session_state.historical_steps_blind) / len(st.session_state.historical_steps_blind) if st.session_state.historical_steps_blind else blind_steps
+        avg_steps_heuristic = sum(st.session_state.historical_steps_heuristic) / len(st.session_state.historical_steps_heuristic) if st.session_state.historical_steps_heuristic else heuristic_steps
+        avg_backtracks_blind = sum(st.session_state.historical_backtracks_blind) / len(st.session_state.historical_backtracks_blind) if st.session_state.historical_backtracks_blind else blind_backtracks
+        avg_backtracks_heuristic = sum(st.session_state.historical_backtracks_heuristic) / len(st.session_state.historical_backtracks_heuristic) if st.session_state.historical_backtracks_heuristic else heuristic_backtracks
+        
+        # For memory, use the averages from total_memory_history
+        avg_memory_blind = sum(mem[0] for mem in st.session_state.total_memory_history) / len(st.session_state.total_memory_history) if st.session_state.total_memory_history else total_memory_blind
+        avg_memory_heuristic = sum(mem[1] for mem in st.session_state.total_memory_history) / len(st.session_state.total_memory_history) if st.session_state.total_memory_history else total_memory_heuristic
+
+        # Prepare comparison metrics based on averages
+        time_diff = avg_time_blind - avg_time_heuristic
+        time_percent = (time_diff / avg_time_blind) * 100 if avg_time_blind > 0 else 0
+        steps_diff = avg_steps_blind - avg_steps_heuristic
+        steps_percent = (steps_diff / avg_steps_blind) * 100 if avg_steps_blind > 0 else 0
+        backtrack_diff = avg_backtracks_blind - avg_backtracks_heuristic
+        backtrack_percent = (backtrack_diff / avg_backtracks_blind) * 100 if avg_backtracks_blind > 0 else 0
+        memory_diff = avg_memory_blind - avg_memory_heuristic
+        memory_percent = (memory_diff / avg_memory_blind) * 100 if avg_memory_blind > 0 else 0
 
         # Determine winners
         faster = "Heuristic" if time_diff > 0 else "Blind"
@@ -505,32 +537,35 @@ if st.session_state.solving:
         less_backtracking = "Heuristic" if backtrack_diff > 0 else "Blind"
         less_memory = "Heuristic" if memory_diff > 0 else "Blind"
 
+        # Calculate number of boards in the comparison
+        num_boards = len(st.session_state.runtime_history)
+
         # 📊 **Comparison Table**
         comparison_data = {
             "Metric": ["Time Efficiency", "Memory Efficiency", "Solution Efficiency", "Backtracking Efficiency"],
-            "Blind Search": [
-                f"{time_blind:.4f} sec",
-                f"{total_memory_blind:.2f} MB",
-                f"{blind_steps} steps",
-                f"{blind_backtracks} backtracks"
+            "Blind Search (Average)": [
+                f"{avg_time_blind:.4f} sec",
+                f"{avg_memory_blind:.2f} MB",
+                f"{avg_steps_blind:.1f} steps",
+                f"{avg_backtracks_blind:.1f} backtracks"
             ],
-            "Heuristic Search": [
-                f"{time_heuristic:.4f} sec",
-                f"{total_memory_heuristic:.2f} MB",
-                f"{heuristic_steps} steps",
-                f"{heuristic_backtracks} backtracks"
+            "Heuristic Search (Average)": [
+                f"{avg_time_heuristic:.4f} sec",
+                f"{avg_memory_heuristic:.2f} MB",
+                f"{avg_steps_heuristic:.1f} steps",
+                f"{avg_backtracks_heuristic:.1f} backtracks"
             ],
             "Difference": [
                 f"{abs(time_diff):.4f} sec ({abs(time_percent):.1f}%)",
                 f"{abs(memory_diff):.2f} MB ({abs(memory_percent):.1f}%)",
-                f"{abs(steps_diff)} steps ({abs(steps_percent):.1f}%)",
-                f"{abs(backtrack_diff)} backtracks ({abs(backtrack_percent):.1f}%)"
+                f"{abs(steps_diff):.1f} steps ({abs(steps_percent):.1f}%)",
+                f"{abs(backtrack_diff):.1f} backtracks ({abs(backtrack_percent):.1f}%)"
             ],
             "Winner": [faster, less_memory, more_efficient, less_backtracking]
         }
 
         df_comparison = pd.DataFrame(comparison_data)
-        st.markdown("### 📊 Comparison Results Table")
+        st.markdown(f"### 📊 Comparison Results Table (Average of {num_boards} Boards)")
         st.dataframe(df_comparison)
 
 
@@ -637,42 +672,68 @@ if len(st.session_state.total_memory_history) > 0:
         )
         st.plotly_chart(fig_memory, use_container_width=True)
         
+        # Calculate memory statistics from all stored data
+        if len(st.session_state.total_memory_history) > 0:
+            blind_memory_data = [mem[0] for mem in st.session_state.total_memory_history]
+            heuristic_memory_data = [mem[1] for mem in st.session_state.total_memory_history]
+            
+            avg_memory_blind = sum(blind_memory_data) / len(blind_memory_data)
+            max_memory_blind = max(blind_memory_data)
+            min_memory_blind = min(blind_memory_data)
+            
+            avg_memory_heuristic = sum(heuristic_memory_data) / len(heuristic_memory_data)
+            max_memory_heuristic = max(heuristic_memory_data)
+            min_memory_heuristic = min(heuristic_memory_data)
+        else:
+            # Fallback if no history
+            avg_memory_blind = max_memory_blind = min_memory_blind = total_memory_blind
+            avg_memory_heuristic = max_memory_heuristic = min_memory_heuristic = total_memory_heuristic
+        
         # 🧠 **Memory Stats Table**
         memory_stats_data = {
             "Metric": ["Average Memory", "Max Memory", "Min Memory"],
-            "Blind Search (MB)": [
-                f"{total_memory_blind:.2f} MB",
-                f"{total_memory_blind + 1.5:.2f} MB",
-                f"{total_memory_blind - 1.0:.2f} MB"
+            "Blind Search": [
+                f"{avg_memory_blind:.2f} MB",
+                f"{max_memory_blind:.2f} MB",
+                f"{min_memory_blind:.2f} MB"
             ],
-            "Heuristic Search (MB)": [
-                f"{total_memory_heuristic:.2f} MB",
-                f"{total_memory_heuristic + 1.2:.2f} MB",
-                f"{total_memory_heuristic - 0.8:.2f} MB"
+            "Heuristic Search": [
+                f"{avg_memory_heuristic:.2f} MB",
+                f"{max_memory_heuristic:.2f} MB",
+                f"{min_memory_heuristic:.2f} MB"
+            ],
+            "Difference": [
+                f"{(avg_memory_blind - avg_memory_heuristic):.2f} MB ({abs((avg_memory_blind - avg_memory_heuristic) / avg_memory_blind * 100 if avg_memory_blind > 0 else 0):.1f}%)",
+                f"{(max_memory_blind - max_memory_heuristic):.2f} MB ({abs((max_memory_blind - max_memory_heuristic) / max_memory_blind * 100 if max_memory_blind > 0 else 0):.1f}%)",
+                f"{(min_memory_blind - min_memory_heuristic):.2f} MB ({abs((min_memory_blind - min_memory_heuristic) / min_memory_blind * 100 if min_memory_blind > 0 else 0):.1f}%)"
             ]
         }
 
         df_memory_stats = pd.DataFrame(memory_stats_data)
-        st.markdown("### 🧠 Memory Usage Comparison Table")
+        st.markdown(f"### 🧠 Memory Usage Comparison Table (Based on {len(st.session_state.total_memory_history)} Boards)")
         st.dataframe(df_memory_stats)
-    
+
     with tab2:
         # Runtime graph
         if len(st.session_state.runtime_history) > 0:
-            avg_runtime_blind = sum(t[0] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
-            max_runtime_blind = max(t[0] for t in st.session_state.runtime_history)
-            min_runtime_blind = min(t[0] for t in st.session_state.runtime_history)
+            blind_runtime_data = [t[0] for t in st.session_state.runtime_history]
+            heuristic_runtime_data = [t[1] for t in st.session_state.runtime_history]
             
-            avg_runtime_heuristic = sum(t[1] for t in st.session_state.runtime_history) / len(st.session_state.runtime_history)
-            max_runtime_heuristic = max(t[1] for t in st.session_state.runtime_history)
-            min_runtime_heuristic = min(t[1] for t in st.session_state.runtime_history)
+            avg_runtime_blind = sum(blind_runtime_data) / len(blind_runtime_data)
+            max_runtime_blind = max(blind_runtime_data)
+            min_runtime_blind = min(blind_runtime_data)
+            
+            avg_runtime_heuristic = sum(heuristic_runtime_data) / len(heuristic_runtime_data)
+            max_runtime_heuristic = max(heuristic_runtime_data)
+            min_runtime_heuristic = min(heuristic_runtime_data)
+            
             fig_runtime = go.Figure()
             x_axis = list(range(1, len(st.session_state.runtime_history) + 1))
             
             # Regular runtime lines
             fig_runtime.add_trace(go.Scatter(
                 x=x_axis,
-                y=[t[0] for t in st.session_state.runtime_history],
+                y=blind_runtime_data,
                 name="Blind Search",
                 line=dict(color='blue'),
                 mode='lines+markers'  # Add markers for better visibility
@@ -680,7 +741,7 @@ if len(st.session_state.total_memory_history) > 0:
             
             fig_runtime.add_trace(go.Scatter(
                 x=x_axis,
-                y=[t[1] for t in st.session_state.runtime_history],
+                y=heuristic_runtime_data,
                 name="Heuristic Search",
                 line=dict(color='red'),
                 mode='lines+markers'  # Add markers for better visibility
@@ -706,19 +767,23 @@ if len(st.session_state.total_memory_history) > 0:
             # 📊 **Runtime Stats Table**
             runtime_stats_data = {
                 "Metric": ["Average Runtime", "Max Runtime", "Min Runtime"],
-                "Blind Search (sec)": [
+                "Blind Search": [
                     f"{avg_runtime_blind:.4f} sec",
                     f"{max_runtime_blind:.4f} sec",
                     f"{min_runtime_blind:.4f} sec"
                 ],
-                "Heuristic Search (sec)": [
+                "Heuristic Search": [
                     f"{avg_runtime_heuristic:.4f} sec",
                     f"{max_runtime_heuristic:.4f} sec",
                     f"{min_runtime_heuristic:.4f} sec"
+                ],
+                "Difference": [
+                    f"{(avg_runtime_blind - avg_runtime_heuristic):.4f} sec ({abs((avg_runtime_blind - avg_runtime_heuristic) / avg_runtime_blind * 100 if avg_runtime_blind > 0 else 0):.1f}%)",
+                    f"{(max_runtime_blind - max_runtime_heuristic):.4f} sec ({abs((max_runtime_blind - max_runtime_heuristic) / max_runtime_blind * 100 if max_runtime_blind > 0 else 0):.1f}%)",
+                    f"{(min_runtime_blind - min_runtime_heuristic):.4f} sec ({abs((min_runtime_blind - min_runtime_heuristic) / min_runtime_blind * 100 if min_runtime_blind > 0 else 0):.1f}%)"
                 ]
             }
 
             df_runtime_stats = pd.DataFrame(runtime_stats_data)
-            st.markdown("### ⏱️ Runtime Comparison Table")
+            st.markdown(f"### ⏱️ Runtime Comparison Table (Based on {len(st.session_state.runtime_history)} Boards)")
             st.dataframe(df_runtime_stats)
-
