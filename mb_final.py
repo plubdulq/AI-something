@@ -277,7 +277,7 @@ with b1:
         st.session_state.total_memory_history.append(
             (total_memory_blind, total_memory_heuristic)
         )
-        if len(st.session_state.total_memory_history) > 10:
+        if len(st.session_state.total_memory_history) > 25:
             st.session_state.total_memory_history.pop(0)
         
         st.rerun()
@@ -340,7 +340,7 @@ with b3:
         st.session_state.runtime_history.append(
             (st.session_state.time_blind, st.session_state.time_heuristic)
         )
-        if len(st.session_state.runtime_history) > 10:
+        if len(st.session_state.runtime_history) > 25:
             st.session_state.runtime_history.pop(0)
 
         # Store memory usage results
@@ -352,7 +352,7 @@ with b3:
         st.session_state.total_memory_history.append(
             (total_memory_blind, total_memory_heuristic)
         )
-        if len(st.session_state.total_memory_history) > 10:
+        if len(st.session_state.total_memory_history) > 25:
             st.session_state.total_memory_history.pop(0)
 
         st.rerun()  # Restart UI to reflect changes
@@ -406,7 +406,8 @@ if st.session_state.solving:
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown(f"### Blind Search ({st.session_state.current_step_blind}/{len(st.session_state.steps_blind)} steps)")
+        st.markdown(f"### Blind Search ({st.session_state.current_step_blind}/{len(st.session_state.steps_blind)} steps)" ,
+                              help="Blind Search (Brute Force): This method tries every possible number in each empty cell until a solution is found, often using Depth-First Search (DFS) or Breadth-First Search (BFS). It does not consider Sudoku rules in advance, making it slow and inefficient as it checks all possibilities blindly.")
         st.markdown(draw_board(st.session_state.board_blind, st.session_state.original_board, 
                               st.session_state.highlight_pos_blind), unsafe_allow_html=True)
         
@@ -439,7 +440,7 @@ if st.session_state.solving:
                 st.write(f"Last action: {action} {num if num > 0 else ''} at ({row}, {col})")
 
     with col2:
-        st.markdown(f"### Heuristic Search ({st.session_state.current_step_heuristic}/{len(st.session_state.steps_heuristic)} steps)")
+        st.markdown(f"### Heuristic Search ({st.session_state.current_step_heuristic}/{len(st.session_state.steps_heuristic)} steps)", help=("Heuristic Search (Smart Search): This method uses logic to solve Sudoku more efficiently. It prioritizes filling cells with the fewest possible options and avoids choices that lead to conflicts. Advanced techniques like backtracking with forward checking and A* Search make the process much faster by reducing unnecessary guesses."))
         st.markdown(draw_board(st.session_state.board_heuristic, st.session_state.original_board,
                               st.session_state.highlight_pos_heuristic), unsafe_allow_html=True)
         
